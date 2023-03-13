@@ -4,18 +4,18 @@ import re
 import dotenv
 import discord
 import requests
+from discord.ext import tasks
 
 #create bot class
 bot = discord.Bot()
 
+#load environmental variables
+dotenv.load_dotenv()
+TOKEN = str(os.getenv('TOKEN'))
+CHANNEL_ID = int(os.getenv('CHANNEL_ID'))
+
 #add command group for workshop mod monitoring-related commands
 mods = bot.create_group("mods", "Commands related to monitored Workshop mods")
-
-#add a ready event for when the bot is logged in and active
-@bot.event
-async def on_ready():
-    """Will print that the bot is ready on successful login, with username and 4-digit discord ID"""
-    print(f"{bot.user} is ready and online!")
 
 #Load workshop data from file
 workshop_data = {}
@@ -123,7 +123,19 @@ async def print_list(ctx):
     else:
         await ctx.respond("No currently monitored items.")
 
+@tasks.loop(minutes=10.0)
+async def automated_update_check(update_channel: discord.channel):
+    """Automatically scan for updates to monitored workshop items"""
+    updated = get_update_dates()
+    if updated:
+        await update_channel.send(f"Found updates for Workshop IDs: {', '.join(updated)}")
+
+@bot.event
+async def on_ready():
+    """Ready event for when the bot is logged in and active"""
+    print(f"{bot.user} is ready and online!")
+    update_channel = bot.get_channel(CHANNEL_ID)
+    automated_update_check.start(update_channel)
+
 #login with the bot's token
-dotenv.load_dotenv()
-TOKEN = str(os.getenv('TOKEN'))
 bot.run(TOKEN)
