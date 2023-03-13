@@ -2,9 +2,10 @@ import json
 import os
 import re
 import dotenv
-import discord
 import requests
+import discord
 from discord.ext import tasks
+from discord import default_permissions
 
 #create bot class
 bot = discord.Bot()
@@ -15,7 +16,9 @@ TOKEN = str(os.getenv('TOKEN'))
 CHANNEL_ID = int(os.getenv('CHANNEL_ID'))
 
 #add command group for workshop mod monitoring-related commands
-mods = bot.create_group("mods", "Commands related to monitored Workshop mods")
+mods = bot.create_group(name = "mods",
+                        description = "Commands related to monitored Workshop mods",
+                        default_member_permissions = discord.Permissions(administrator = True))
 
 #Load workshop data from file
 workshop_data = {}
