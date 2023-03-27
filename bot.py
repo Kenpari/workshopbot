@@ -13,7 +13,6 @@ bot = discord.Bot()
 #load environmental variables
 dotenv.load_dotenv()
 TOKEN = str(os.getenv('TOKEN'))
-CHANNEL_ID = int(os.getenv('CHANNEL_ID'))
 
 #add command group for workshop mod monitoring-related commands
 mods = bot.create_group(name = "mods",
@@ -122,23 +121,46 @@ async def print_list(ctx):
     """Slash command to print a list of all currently monitored workshop IDs"""
     if workshop_data:
         await ctx.respond(
-            f"All currently monitored Workshop IDs:\n{', '.join([i for i in workshop_data])}")
+            f"All currently monitored Workshop IDs:\n{', '.join(list(workshop_data))}")
     else:
         await ctx.respond("No currently monitored items.")
 
+@mods.command(name="setchannel",
+              description="Set the channel that should be used to communicate routine update checks.")
+async def set_channel(ctx, channel_name):
+    """Slash command to set the update channel environment variable to another channel ID"""
+    channel_id = int(channel_name.strip('<#>'))
+    channel = bot.get_channel(channel_id)
+    if not channel:
+        await ctx.respond("Invalid channel. Please use a valid channel name or ID.")
+    else:
+        with open('.env', 'r', encoding='utf-8') as f:
+            environ = f.readlines()
+
+        for line_num,line in enumerate(environ):
+            if line.startswith("CHANNEL_ID ="):
+                environ[line_num] = f"CHANNEL_ID = {channel_id}"
+
+        with open('.env', 'w', encoding='utf-8') as f:
+            f.writelines(environ)
+
+        dotenv.load_dotenv(override=True)
+        await ctx.respond(f"Update notification channel set to {channel_name}")
+
 @tasks.loop(minutes=10.0)
-async def automated_update_check(update_channel: discord.channel):
+async def automated_update_check():
     """Automatically scan for updates to monitored workshop items"""
     updated = get_update_dates()
     if updated:
-        await update_channel.send(f"Found updates for Workshop IDs: {', '.join(updated)}")
+        update_channel_id = int(os.getenv('CHANNEL_ID'))
+        update_channel = bot.get_channel(update_channel_id)
+        await update_channel.send(f"<@214213789522984961> <@141690729733816320> Found updates for Workshop IDs: {', '.join(updated)}")
 
 @bot.event
 async def on_ready():
     """Ready event for when the bot is logged in and active"""
     print(f"{bot.user} is ready and online!")
-    update_channel = bot.get_channel(CHANNEL_ID)
-    automated_update_check.start(update_channel)
+    automated_update_check.start()
 
 #login with the bot's token
 bot.run(TOKEN)
